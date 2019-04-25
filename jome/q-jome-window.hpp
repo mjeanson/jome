@@ -65,9 +65,11 @@ public:
 
 public:
     explicit QJomeWindow(const EmojiDb& emojiDb,
+                         bool isEternal,
                          const EmojiChosenFunc& emojiChosenFunc);
 
 private:
+    void closeEvent(QCloseEvent *event) override;
     void showEvent(QShowEvent *event) override;
     void _setMainStyleSheet();
     void _buildUi();
@@ -78,6 +80,8 @@ private:
     void _acceptEmoji(const Emoji& emoji, Emoji::SkinTone skinTone);
 
 private slots:
+    void reject() override;
+    void accept() override;
     void _searchTextChanged(const QString& text);
     void _catListItemSelectionChanged();
     void _catListItemClicked(QListWidgetItem *item);
@@ -106,8 +110,10 @@ private:
     QEmojisWidget *_wEmojis = nullptr;
     QListWidget *_wCatList = nullptr;
     QLabel *_wInfoLabel = nullptr;
+    QLineEdit *_wSearchBox = nullptr;
     bool _emojisWidgetBuilt = false;
     const Emoji *_selectedEmoji = nullptr;
+    const bool _isEternal;
 };
 
 } // namespace jome

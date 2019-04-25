@@ -102,10 +102,12 @@ bool QSearchBoxEventFilter::eventFilter(QObject * const obj,
 }
 
 QJomeWindow::QJomeWindow(const EmojiDb& emojiDb,
+                         const bool isEternal,
                          const EmojiChosenFunc& emojiChosenFunc) :
     QDialog {},
     _emojiDb {&emojiDb},
-    _emojiChosenFunc {emojiChosenFunc}
+    _emojiChosenFunc {emojiChosenFunc},
+    _isEternal {isEternal}
 {
     this->setWindowTitle("jome");
     this->setFixedSize(800, 600);
@@ -178,14 +180,13 @@ QListWidget *QJomeWindow::_createCatListWidget()
 
 void QJomeWindow::_buildUi()
 {
-    auto searchBox = new QLineEdit;
-
-    QObject::connect(searchBox, SIGNAL(textChanged(const QString&)),
+    _wSearchBox = new QLineEdit;
+    QObject::connect(_wSearchBox, SIGNAL(textChanged(const QString&)),
                      this, SLOT(_searchTextChanged(const QString&)));
 
     auto eventFilter = new QSearchBoxEventFilter {this};
 
-    searchBox->installEventFilter(eventFilter);
+    _wSearchBox->installEventFilter(eventFilter);
     QObject::connect(eventFilter, SIGNAL(upKeyPressed()),
                      this, SLOT(_searchBoxUpKeyPressed()));
     QObject::connect(eventFilter, SIGNAL(rightKeyPressed()),
@@ -219,7 +220,7 @@ void QJomeWindow::_buildUi()
 
     mainVbox->setMargin(8);
     mainVbox->setSpacing(8);
-    mainVbox->addWidget(searchBox);
+    mainVbox->addWidget(_wSearchBox);
     _wEmojis = new QEmojisWidget {nullptr, *_emojiDb};
     QObject::connect(_wEmojis, SIGNAL(selectionChanged(const Emoji *)),
                      this, SLOT(_emojiSelectionChanged(const Emoji *)));
@@ -245,6 +246,24 @@ void QJomeWindow::_buildUi()
     mainVbox->addWidget(_wInfoLabel);
 }
 
+void QJomeWindow::reject()
+{
+    if (_isEternal) {
+        this->hide();
+    } else {
+        QDialog::reject();
+    }
+}
+
+void QJomeWindow::accept()
+{
+    if (_isEternal) {
+        this->hide();
+    } else {
+        QDialog::accept();
+    }
+}
+
 void QJomeWindow::showEvent(QShowEvent * const event)
 {
     QDialog::showEvent(event);
@@ -255,6 +274,17 @@ void QJomeWindow::showEvent(QShowEvent * const event)
     }
 
     _wEmojis->showAllEmojis();
+    _wSearchBox->setFocus();
+}
+
+void QJomeWindow::closeEvent(QCloseEvent * const event)
+{
+    if (_isEternal) {
+        event->ignore();
+        this->hide();
+    } else {
+        QDialog::closeEvent(event);
+    }
 }
 
 void QJomeWindow::_findEmojis(const std::string& cat,
@@ -404,15 +434,13 @@ void QJomeWindow::_acceptSelectedEmoji(const Emoji::SkinTone skinTone)
     if (_selectedEmoji) {
         this->_acceptEmoji(*_selectedEmoji, skinTone);
     }
-
-    this->done(0);
 }
 
 void QJomeWindow::_acceptEmoji(const Emoji& emoji,
                                const Emoji::SkinTone skinTone)
 {
     _emojiChosenFunc(emoji, skinTone);
-    this->done(0);
+    this->accept();
 }
 
 void QJomeWindow::_updateInfoLabel(const Emoji * const emoji)
